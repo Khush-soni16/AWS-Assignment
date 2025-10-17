@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: node-app
+    restart: always
+    env_file:
+      - .env
+    depends_on:
+      - mongo
+    ports:
+      - "3000:3000"
+    security_opt:
+      - no-new-privileges:true
+    user: "1000:1000" # Non-root enforcement
+    read_only: true # Root filesystem read-only
+    tmpfs:
+      - /tmp
+    command: ["npm", "start"]
+
+  mongo:
+    image: mongo:6.0
+    container_name: mongo-secure
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASS}
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db  # ✅ Use default /data/db
+    command: ["--auth"]  # ✅ Enables mandatory auth
+    security_opt:
+      - no-new-privileges:true
+    user: "999:999" # Non-root Mongo user
+
+volumes:
+  mongo_data:
+    driver: local
