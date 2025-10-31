@@ -1,49 +1,34 @@
-<<<<<<< HEAD
 const express = require("express");
 const mongoose = require("mongoose");
+require("dotenv").config();
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(express.json());
 
-// MongoDB connection (dummy URI for now)
-const mongoURI = "mongodb://localhost:27017/testdb";
-mongoose.connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
-  .then(() => console.log("MongoDB connected"))
-  .catch(err => console.log("MongoDB connection error:", err));
+// MongoDB connection (from env variable)
+const mongoURI = process.env.MONGO_URL;
+
+mongoose.connect(mongoURI, { 
+  useNewUrlParser: true, 
+  useUnifiedTopology: true 
+})
+  .then(() => console.log("✅ MongoDB connected successfully"))
+  .catch(err => console.log("❌ MongoDB connection error:", err));
 
 // Basic route
 app.get("/", (req, res) => {
-    res.send("Hello from DevSecOps Assignment!");
+    res.send("Hello from DevSecOps Assignment! MongoDB connection successful!");
+});
+
+// Health check route for verification
+app.get("/health", async (req, res) => {
+  const dbStatus = mongoose.connection.readyState === 1 ? "connected" : "disconnected";
+  res.status(200).json({ status: "ok", db: dbStatus });
 });
 
 app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
-=======
-const express = require("express");
-const mongoose = require("mongoose");
-
-const app = express();
-const PORT = 3000;
-
-// Middleware
-app.use(express.json());
-
-// MongoDB connection (dummy URI for now)
-const mongoURI = "mongodb://localhost:27017/testdb";
-mongoose.connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
-  .then(() => console.log("MongoDB connected"))
-  .catch(err => console.log("MongoDB connection error:", err));
-
-// Basic route
-app.get("/", (req, res) => {
-    res.send("Hello from DevSecOps Assignment!");
-});
-
-app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-});
->>>>>>> 740f6f82da195478be39992633b6362713aaa904

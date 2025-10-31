@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+#HEAD>>
 # Stage 1: Build
 FROM node:20-alpine AS builder
 WORKDIR /app
@@ -17,7 +17,7 @@ USER appuser
 
 EXPOSE 3000
 CMD ["node", "app.js"]
-=======
+
 # Stage 1: Build
 FROM node:20-alpine AS builder
 WORKDIR /app
@@ -36,4 +36,4 @@ USER appuser
 
 EXPOSE 3000
 CMD ["node", "app.js"]
->>>>>>> 740f6f82da195478be39992633b6362713aaa904
+
