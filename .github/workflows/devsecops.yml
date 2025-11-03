@@ -13,38 +13,63 @@ jobs:
     steps:
       # ---------- CHECKOUT CODE ----------
       - name: Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+
+      # ---------- INSTALL TRIVY ----------
+      - name: Install Trivy
+        run: |
+          sudo apt-get update
+          sudo apt-get install wget -y
+          wget https://github.com/aquasecurity/trivy/releases/latest/download/trivy_0.51.0_Linux-64bit.deb
+          sudo dpkg -i trivy_0.51.0_Linux-64bit.deb
+          trivy --version
+
+      # ---------- FILE SYSTEM SCAN ----------
+      - name: Trivy FS Scan
+        run: |
+          trivy fs --exit-code 0 --severity HIGH,CRITICAL . > trivy-fs-report.txt
 
       # ---------- BUILD DOCKER IMAGE ----------
       - name: Build Docker Image
         run: docker build -t awsassignment-app:secure .
 
-      # ---------- VERIFY DOCKER IMAGE ----------
-      - name: Verify Image Exists
-        run: docker images awsassignment-app:secure
+      # ---------- DOCKER IMAGE SCAN ----------
+      - name: Trivy Docker Scan
+        run: |
+          trivy image --exit-code 0 --severity HIGH,CRITICAL awsassignment-app:secure > trivy-image-report.txt
 
-      # ---------- TRIVY SCAN (FIXED) ----------
-      - name: Run Trivy Scan
-        uses: aquasecurity/trivy-action@0.18.0
+      # ---------- UPLOAD TRIVY REPORTS ----------
+      - name: Upload Trivy Reports
+        uses: actions/upload-artifact@v4
         with:
-          image-ref: 'awsassignment-app:secure'
-          format: 'table'
-          output: 'trivy-secure-report.txt'
-          exit-code: 0               # Prevent pipeline failure on error
-          ignore-unfixed: true
-          severity: HIGH,CRITICAL
+          name: trivy-reports
+          path: |
+            trivy-fs-report.txt
+            trivy-image-report.txt
 
-      - name: Upload Trivy Report
-        uses: actions/upload-artifact@v3
+      # ---------- INSTALL NODE & DEPENDENCIES ----------
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          name: trivy-secure-report
-          path: trivy-secure-report.txt
+          node-version: '18'
+
+      - name: Install Dependencies
+        run: npm install
 
       # ---------- SNYK SCAN ----------
-      - name: Run Snyk Scan
+      - name: Run Snyk Dependency Scan
+        uses: snyk/actions/node@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: test --severity-threshold=high
+
+      - name: Run Snyk Docker Scan
         uses: snyk/actions/docker@master
         continue-on-error: true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
           image: awsassignment-app:secure
+          args: --file=Dockerfile --severity-threshold=high
