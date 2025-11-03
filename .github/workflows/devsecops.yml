@@ -11,9 +11,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # ---------- CHECKOUT CODE ----------
       - name: Checkout Code
         uses: actions/checkout@v3
 
+      # ---------- BUILD DOCKER IMAGE ----------
       - name: Build Docker Image
         run: docker build -t awsassignment-app:secure .
 
@@ -24,9 +26,9 @@ jobs:
           image-ref: awsassignment-app:secure
           format: 'table'
           output: 'trivy-secure-report.txt'
-          exit-code: 0            # Don't fail pipeline for vulnerabilities
+          exit-code: 1            # Fail only if CRITICAL issues found
           ignore-unfixed: true
-          severity: HIGH,CRITICAL
+          severity: CRITICAL
 
       - name: Upload Trivy Report
         uses: actions/upload-artifact@v3
@@ -37,7 +39,7 @@ jobs:
       # ---------- SNYK SCAN ----------
       - name: Run Snyk Scan
         uses: snyk/actions/docker@master
-        continue-on-error: true    # Prevent pipeline from failing if issues found
+        continue-on-error: true   # Allow pipeline to complete even if Snyk finds issues
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
