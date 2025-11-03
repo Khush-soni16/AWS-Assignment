@@ -2,51 +2,43 @@ name: DevSecOps Security Pipeline
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
   pull_request:
-    branches:
-      - main
+    branches: [ main ]
 
 jobs:
-  build-and-scan:
+  security-scan:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Checkout the code
-      - name: Checkout repository
+      - name: Checkout Code
         uses: actions/checkout@v3
 
-      # Step 2: Set up Node.js
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '20'
-
-      # Step 3: Install dependencies
-      - name: Install dependencies
-        run: |
-          npm install --production
-
-      # Step 4: Build Docker image
       - name: Build Docker Image
-        run: |
-          docker build -t awsassignment-app:secure .
+        run: docker build -t awsassignment-app:secure .
 
-      # Step 5: Scan the image using Trivy
-      - name: Run Trivy Security Scan
+      # ---------- TRIVY SCAN ----------
+      - name: Run Trivy Scan
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: awsassignment-app:secure
           format: 'table'
           output: 'trivy-secure-report.txt'
-          exit-code: 0
-          severity: HIGH,CRITICAL
+          exit-code: 0            # Don't fail pipeline for vulnerabilities
           ignore-unfixed: true
+          severity: HIGH,CRITICAL
 
-      # Step 6: Upload scan report as artifact
       - name: Upload Trivy Report
         uses: actions/upload-artifact@v3
         with:
           name: trivy-secure-report
           path: trivy-secure-report.txt
+
+      # ---------- SNYK SCAN ----------
+      - name: Run Snyk Scan
+        uses: snyk/actions/docker@master
+        continue-on-error: true    # Prevent pipeline from failing if issues found
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          image: awsassignment-app:secure
