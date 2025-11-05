@@ -1,4 +1,4 @@
-name: DevSecOps Security Pipeline
+name: DevSecOps Security + Deployment Pipeline
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
     branches: [ main ]
 
 jobs:
-  security-scan:
+  security-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
@@ -15,7 +15,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # 2️⃣ Set up Docker
+      # 2️⃣ Set up Docker Buildx
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -23,11 +23,11 @@ jobs:
       - name: Build Docker Image
         run: docker build -t awsassignment-app:secure .
 
-      # 4️⃣ Verify Docker Image
+      # 4️⃣ Verify Docker Image Exists
       - name: Verify Docker Image Exists
         run: docker images awsassignment-app:secure
 
-      # 5️⃣ Install Trivy (Stable)
+      # 5️⃣ Install Trivy
       - name: Install Trivy
         run: |
           sudo apt-get update
@@ -41,7 +41,7 @@ jobs:
         run: |
           trivy image --format table --output trivy-secure-report.txt --ignore-unfixed --exit-code 0 --severity HIGH,CRITICAL awsassignment-app:secure
 
-      # 7️⃣ Upload Trivy Report (updated action v4)
+      # 7️⃣ Upload Trivy Report
       - name: Upload Trivy Report
         uses: actions/upload-artifact@v4
         with:
@@ -56,3 +56,47 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
           image: awsassignment-app:secure
+
+      # 9️⃣ Configure AWS Credentials
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      # 🔟 Log in to Amazon ECR
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # 1️⃣1️⃣ Tag and Push Docker Image to ECR
+      - name: Build, Tag, and Push to ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: awsassignment-app
+          IMAGE_TAG: latest
+        run: |
+          docker tag awsassignment-app:secure $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+      # 1️⃣2️⃣ Update Kubeconfig for EKS (confirmed cluster name)
+      - name: Update kubeconfig for EKS
+        run: |
+          aws eks update-kubeconfig --region ${{ secrets.AWS_REGION }} --name awsassignment-eks-cluster
+
+      # 1️⃣3️⃣ Deploy to EKS
+      - name: Deploy to EKS
+        run: |
+          kubectl apply -f k8s/deployment-mongo.yaml
+          kubectl apply -f k8s/service-mongo.yaml
+          kubectl apply -f k8s/deployment-app.yaml
+          kubectl apply -f k8s/service-app.yaml
+          kubectl apply -f k8s/ingress.yaml
+
+      # 1️⃣4️⃣ Verify Deployment
+      - name: Verify Kubernetes Resources
+        run: |
+          kubectl get pods
+          kubectl get svc
+          kubectl get ingress
