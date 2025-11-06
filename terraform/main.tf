@@ -16,7 +16,7 @@ module "eks" {
 }
 # ECR Module
 module "ecr" {
-  source = "./ecr"
+  source = "./modules/ecr"
   repository_name = "awsassignment-app"
   scan_on_push    = true
   tags = {
