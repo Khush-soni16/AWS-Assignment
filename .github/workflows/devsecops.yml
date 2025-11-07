@@ -11,23 +11,23 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout Code
+      # 1 Checkout Code
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # 2️⃣ Set up Docker Buildx
+      # 2️ Set up Docker Buildx
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # 3️⃣ Build Docker Image
+      # 3️ Build Docker Image
       - name: Build Docker Image
         run: docker build -t awsassignment-app:secure .
 
-      # 4️⃣ Verify Docker Image Exists
+      # 4️ Verify Docker Image Exists
       - name: Verify Docker Image Exists
         run: docker images awsassignment-app:secure
 
-      # 5️⃣ Install Trivy
+      # 5️ Install Trivy
       - name: Install Trivy
         run: |
           sudo apt-get update
@@ -36,19 +36,19 @@ jobs:
           sudo dpkg -i trivy_0.52.2_Linux-64bit.deb
           trivy --version
 
-      # 6️⃣ Run Trivy Image Scan
+      # 6️ Run Trivy Image Scan
       - name: Run Trivy Image Scan
         run: |
           trivy image --format table --output trivy-secure-report.txt --ignore-unfixed --exit-code 0 --severity HIGH,CRITICAL awsassignment-app:secure
 
-      # 7️⃣ Upload Trivy Report
+      # 7️ Upload Trivy Report
       - name: Upload Trivy Report
         uses: actions/upload-artifact@v4
         with:
           name: trivy-secure-report
           path: trivy-secure-report.txt
 
-      # 8️⃣ Snyk Scan
+      # 8️ Snyk Scan
       - name: Run Snyk Scan
         uses: snyk/actions/docker@master
         continue-on-error: true
@@ -57,20 +57,35 @@ jobs:
         with:
           image: awsassignment-app:secure
 
-      # 9️⃣ Configure AWS Credentials
+      # 9️ Configure AWS Credentials
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.8
+#10 terraform 
+      - name: Terraform Init
+        working-directory: ./terraform
+        run: terraform init
 
-      # 🔟 Log in to Amazon ECR
+      - name: Terraform Plan
+        working-directory: ./terraform
+        run: terraform plan
+
+      - name: Terraform Apply
+        working-directory: ./terraform
+        run: terraform apply -auto-approve
+      # 11 Log in to Amazon ECR
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      # 1️⃣1️⃣ Tag and Push Docker Image to ECR
+      # 12 Tag and Push Docker Image to ECR
       - name: Build, Tag, and Push to ECR
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
@@ -80,12 +95,12 @@ jobs:
           docker tag awsassignment-app:secure $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
-      # 1️⃣2️⃣ Update Kubeconfig for EKS (confirmed cluster name)
+      # 13 Update Kubeconfig for EKS (confirmed cluster name)
       - name: Update kubeconfig for EKS
         run: |
           aws eks update-kubeconfig --region ${{ secrets.AWS_REGION }} --name awsassignment-eks-cluster
 
-      # 1️⃣3️⃣ Deploy to EKS
+      # 14 Deploy to EKS
       - name: Deploy to EKS
         run: |
           kubectl apply -f k8s/deployment-mongo.yaml
@@ -94,7 +109,7 @@ jobs:
           kubectl apply -f k8s/service-app.yaml
           kubectl apply -f k8s/ingress.yaml
 
-      # 1️⃣4️⃣ Verify Deployment
+      # 15 Verify Deployment
       - name: Verify Kubernetes Resources
         run: |
           kubectl get pods

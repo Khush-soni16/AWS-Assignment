@@ -14,13 +14,9 @@ module "eks" {
   subnet_ids   = module.vpc.subnet_ids
   cluster_name = "secure-eks-cluster"
 }
+
 # ECR Module
 module "ecr" {
-  source = "./modules/ecr"
+  source          = "./modules/ecr"
   repository_name = "awsassignment-app"
-  scan_on_push    = true
-  tags = {
-    Environment = "dev"
-    Project     = "awsassignment"
-  }
 }
