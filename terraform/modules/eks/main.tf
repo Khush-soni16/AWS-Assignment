@@ -2,7 +2,7 @@
 # EKS Cluster IAM Role
 # =========================
 resource "aws_iam_role" "eks_cluster_role" {
-  name                  = "${var.cluster_name}-cluster-role"
+  name_prefix          = "${var.cluster_name}-cluster-role-"
   force_detach_policies = true
 
   assume_role_policy = jsonencode({
@@ -25,10 +25,26 @@ resource "aws_iam_role_policy_attachment" "eks_cluster_policy" {
 }
 
 # =========================
+# EKS Cluster
+# =========================
+resource "aws_eks_cluster" "this" {
+  name     = var.cluster_name
+  role_arn = aws_iam_role.eks_cluster_role.arn
+
+  vpc_config {
+    subnet_ids = var.subnet_ids
+  }
+
+  depends_on = [
+    aws_iam_role_policy_attachment.eks_cluster_policy
+  ]
+}
+
+# =========================
 # Node Group IAM Role
 # =========================
 resource "aws_iam_role" "node_role" {
-  name                  = "${var.cluster_name}-node-role"
+  name_prefix          = "${var.cluster_name}-node-role-"
   force_detach_policies = true
 
   assume_role_policy = jsonencode({
@@ -62,22 +78,6 @@ resource "aws_iam_role_policy_attachment" "ec2_container_registry_readonly" {
 }
 
 # =========================
-# EKS Cluster
-# =========================
-resource "aws_eks_cluster" "this" {
-  name     = var.cluster_name
-  role_arn = aws_iam_role.eks_cluster_role.arn
-
-  vpc_config {
-    subnet_ids = var.subnet_ids
-  }
-
-  depends_on = [
-    aws_iam_role_policy_attachment.eks_cluster_policy
-  ]
-}
-
-# =========================
 # EKS Node Group
 # =========================
 resource "aws_eks_node_group" "node_group" {
@@ -92,14 +92,18 @@ resource "aws_eks_node_group" "node_group" {
     min_size     = 1
   }
 
-  instance_types = ["t3.micro"]
+  instance_types = ["t2.micro"]
 
+  # Ensure node group is deleted before the cluster
   depends_on = [
-    aws_eks_cluster.this,
     aws_iam_role_policy_attachment.node_worker_policy,
     aws_iam_role_policy_attachment.node_cni_policy,
     aws_iam_role_policy_attachment.ec2_container_registry_readonly
   ]
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 # =========================

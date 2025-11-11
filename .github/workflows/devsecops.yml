@@ -13,23 +13,23 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1 Checkout Code
+      # 1. Checkout Code
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # 2️ Set up Docker Buildx
+      # 2. Set up Docker Buildx
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # 3️ Build Docker Image
+      # 3. Build Docker Image
       - name: Build Docker Image
         run: docker build -t awsassignment-app:secure .
 
-      # 4️ Verify Docker Image Exists
+      # 4. Verify Docker Image Exists
       - name: Verify Docker Image Exists
         run: docker images awsassignment-app:secure
 
-      # 5️ Install Trivy
+      # 5. Install Trivy
       - name: Install Trivy
         run: |
           sudo apt-get update
@@ -38,19 +38,19 @@ jobs:
           sudo dpkg -i trivy_0.52.2_Linux-64bit.deb
           trivy --version
 
-      # 6️ Run Trivy Image Scan
+      # 6. Run Trivy Image Scan
       - name: Run Trivy Image Scan
         run: |
           trivy image --format table --output trivy-secure-report.txt --ignore-unfixed --exit-code 0 --severity HIGH,CRITICAL awsassignment-app:secure
 
-      # 7️ Upload Trivy Report
+      # 7. Upload Trivy Report
       - name: Upload Trivy Report
         uses: actions/upload-artifact@v4
         with:
           name: trivy-secure-report
           path: trivy-secure-report.txt
 
-      # 8️ Snyk Scan
+      # 8. Snyk Scan
       - name: Run Snyk Scan
         uses: snyk/actions/docker@master
         continue-on-error: true
@@ -59,53 +59,80 @@ jobs:
         with:
           image: awsassignment-app:secure
 
-      # 9️ Configure AWS Credentials
+      # 9. Configure AWS Credentials
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
+
+      # 10. Setup Terraform
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.9.8
-#10 terraform 
+
+      # 🧹 NEW STEP – Auto Cleanup Old Cluster if Exists
+      - name: Auto Cleanup Old EKS Resources
+        continue-on-error: true
+        run: |
+          echo "🧹 Checking for old EKS cluster and node groups..."
+          CLUSTER_NAME="secure-eks-cluster"
+          if aws eks describe-cluster --name $CLUSTER_NAME --region ${{ secrets.AWS_REGION }} >/dev/null 2>&1; then
+            echo "EKS cluster exists. Deleting node groups first..."
+            NODEGROUPS=$(aws eks list-nodegroups --cluster-name $CLUSTER_NAME --region ${{ secrets.AWS_REGION }} --query 'nodegroups' --output text)
+            for ng in $NODEGROUPS; do
+              echo "Deleting node group: $ng"
+              aws eks delete-nodegroup --cluster-name $CLUSTER_NAME --nodegroup-name $ng --region ${{ secrets.AWS_REGION }}
+              aws eks wait nodegroup-deleted --cluster-name $CLUSTER_NAME --nodegroup-name $ng --region ${{ secrets.AWS_REGION }}
+            done
+            echo "Deleting cluster..."
+            aws eks delete-cluster --name $CLUSTER_NAME --region ${{ secrets.AWS_REGION }}
+            aws eks wait cluster-deleted --name $CLUSTER_NAME --region ${{ secrets.AWS_REGION }}
+          else
+            echo "No existing EKS cluster found. Continuing..."
+          fi
+
+      # 🧹 NEW STEP – Auto Cleanup IAM Roles if Exist
+      - name: Auto Cleanup IAM Roles
+        continue-on-error: true
+        run: |
+          echo "🧹 Checking for existing IAM roles..."
+          for role in secure-eks-cluster-role secure-eks-cluster-node-role; do
+            if aws iam get-role --role-name $role >/dev/null 2>&1; then
+              echo "Detaching policies and deleting $role..."
+              POLICY_ARNS=$(aws iam list-attached-role-policies --role-name $role --query 'AttachedPolicies[*].PolicyArn' --output text)
+              for arn in $POLICY_ARNS; do
+                aws iam detach-role-policy --role-name $role --policy-arn $arn || true
+              done
+              aws iam delete-role --role-name $role || true
+            else
+              echo "Role $role not found."
+            fi
+          done
+
+      # 11. Terraform Init
       - name: Terraform Init
         working-directory: ./terraform
         run: terraform init
-    # 11 Import existing AWS resources if they exist
-      - name: Import Existing ECR Repository
-        working-directory: ./terraform
-        run: |
-          terraform import module.ecr.aws_ecr_repository.app_repository awsassignment-app || true
 
-      - name: Import Existing EKS IAM Role
-        working-directory: ./terraform
-        run: |
-          terraform import module.eks.aws_iam_role.eks_cluster_role eksClusterRole || true
-      - name: Import Existing EKS Cluster
-        working-directory: ./terraform
-        run: |
-          terraform import module.eks.aws_eks_cluster.this secure-eks-cluster || true
-      - name: Import Existing EKS NodeGroup Role
-        working-directory: ./terraform
-        run: |
-          terraform import module.eks.aws_iam_role.node_role eksNodeGroupRole || true
-
+      # 12. Terraform Plan
       - name: Terraform Plan
         working-directory: ./terraform
         run: terraform plan
 
+      # 13. Terraform Apply
       - name: Terraform Apply
         working-directory: ./terraform
         run: terraform apply -auto-approve
-      # 12 Log in to Amazon ECR
+
+      # 14. Login to Amazon ECR
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      # 13 Tag and Push Docker Image to ECR
+      # 15. Push Docker Image to ECR
       - name: Build, Tag, and Push to ECR
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
@@ -115,12 +142,12 @@ jobs:
           docker tag awsassignment-app:secure $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
-      # 14 Update Kubeconfig for EKS (confirmed cluster name)
+      # 16. Update kubeconfig
       - name: Update kubeconfig for EKS
         run: |
           aws eks update-kubeconfig --region ${{ secrets.AWS_REGION }} --name secure-eks-cluster
 
-      # 15 Deploy to EKS
+      # 17. Deploy to EKS
       - name: Deploy to EKS
         run: |
           kubectl apply -f k8s/deployment-mongo.yaml
@@ -129,7 +156,7 @@ jobs:
           kubectl apply -f k8s/service-app.yaml
           kubectl apply -f k8s/ingress.yaml
 
-      # 16 Verify Deployment
+      # 18. Verify Deployment
       - name: Verify Kubernetes Resources
         run: |
           kubectl get pods
