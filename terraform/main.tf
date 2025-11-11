@@ -10,9 +10,14 @@ module "vpc" {
 }
 
 module "eks" {
-  source       = "./modules/eks"
-  subnet_ids   = module.vpc.subnet_ids
-  cluster_name = "secure-eks-cluster"
+  source                   = "./modules/eks"
+  subnet_ids               = module.vpc.subnet_ids
+  cluster_name             = "secure-eks-cluster"
+  node_group_desired_size  = var.node_group_desired_size
+  node_group_min_size      = var.node_group_min_size
+  node_group_max_size      = var.node_group_max_size
+  instance_types           = var.instance_types
+  region                   = var.region
 }
 
 # ECR Module
