@@ -2,7 +2,8 @@
 # EKS Cluster IAM Role
 # =========================
 resource "aws_iam_role" "eks_cluster_role" {
-  name = "eksClusterRole"
+  name                  = "${var.cluster_name}-cluster-role"
+  force_detach_policies = true
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -43,7 +44,8 @@ resource "aws_eks_cluster" "this" {
 # Node Group IAM Role
 # =========================
 resource "aws_iam_role" "node_role" {
-  name = "eksNodeGroupRole"
+  name                  = "${var.cluster_name}-node-role"
+  force_detach_policies = true
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -80,7 +82,7 @@ resource "aws_iam_role_policy_attachment" "ec2_container_registry_readonly" {
 # =========================
 resource "aws_eks_node_group" "node_group" {
   cluster_name    = aws_eks_cluster.this.name
-  node_group_name = "secure-node-group"
+  node_group_name = "${var.cluster_name}-node-group"
   node_role_arn   = aws_iam_role.node_role.arn
   subnet_ids      = var.subnet_ids
 
@@ -90,7 +92,7 @@ resource "aws_eks_node_group" "node_group" {
     min_size     = 1
   }
 
-  instance_types = ["t2.micro"]
+  instance_types = ["t2.micro"] 
 
   depends_on = [
     aws_eks_cluster.this,
