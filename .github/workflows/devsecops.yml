@@ -88,6 +88,10 @@ jobs:
         working-directory: ./terraform
         run: |
           terraform import module.eks.aws_eks_cluster.this secure-eks-cluster || true
+      - name: Import Existing EKS NodeGroup Role
+        working-directory: ./terraform
+        run: |
+          terraform import module.eks.aws_iam_role.node_role eksNodeGroupRole || true
 
       - name: Terraform Plan
         working-directory: ./terraform
