@@ -72,10 +72,8 @@ resource "aws_eks_cluster" "this" {
     subnet_ids = var.subnet_ids
   }
 
-  # Ensures Terraform destroys NodeGroup first before deleting the Cluster
   depends_on = [
-    aws_iam_role_policy_attachment.eks_cluster_policy,
-    aws_eks_node_group.node_group
+    aws_iam_role_policy_attachment.eks_cluster_policy
   ]
 }
 
@@ -94,9 +92,10 @@ resource "aws_eks_node_group" "node_group" {
     min_size     = 1
   }
 
-  instance_types = ["t3.micro"] # ✅ Updated instance type (Free-tier compatible)
+  instance_types = ["t3.micro"]
 
   depends_on = [
+    aws_eks_cluster.this,
     aws_iam_role_policy_attachment.node_worker_policy,
     aws_iam_role_policy_attachment.node_cni_policy,
     aws_iam_role_policy_attachment.ec2_container_registry_readonly
