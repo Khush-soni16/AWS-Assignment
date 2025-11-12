@@ -116,16 +116,7 @@ jobs:
       - name: Terraform Init
         working-directory: ./terraform
         run: terraform init
-      - name: Import Existing ECR Repository
-        working-directory: ./terraform
-        run: terraform import module.ecr.aws_ecr_repository.app_repository awsassignment-app || true
-      - name: Import Existing VPC & Subnets
-        working-directory: ./terraform
-        run: |
-          terraform import module.vpc.aws_vpc.this vpc-055290eca3d5ff33c || true
-          terraform import 'module.vpc.aws_subnet.public[2]' subnet-0b688080d039a9c41 || true
-          terraform import 'module.vpc.aws_subnet.public[1]' subnet-02cc78d3714aba39f|| true
-             
+      - 
             
 
       # 12. Terraform Plan
