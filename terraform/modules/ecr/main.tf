@@ -11,9 +11,9 @@ resource "aws_ecr_repository" "app_repository" {
 }
 
 # Handle case where ECR already exists
-data "aws_ecr_repository" "existing" {
-  name = "awsassignment-app"
-}
+#data "aws_ecr_repository" "existing" {
+ # name = "awsassignment-app"
+#}
 
 output "repository_url" {
   value = try(
