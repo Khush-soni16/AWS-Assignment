@@ -65,11 +65,11 @@ variable "node_group_min_size" {
 variable "node_group_max_size" {
   description = "Maximum number of worker nodes"
   type        = number
-  default     = 3
+  default     = 2
 }
 
 variable "instance_types" {
   description = "EC2 instance types for the EKS node group"
   type        = list(string)
-  default     = ["t3.medium"]
+  default     = ["t3.micro"]
 }

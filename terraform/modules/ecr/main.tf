@@ -16,8 +16,7 @@ resource "aws_ecr_repository" "app_repository" {
 #}
 
 output "repository_url" {
-  value = try(
-    aws_ecr_repository.app_repository.repository_url,
-    data.aws_ecr_repository.existing.repository_url
-  )
+  value = aws_ecr_repository.app_repository.repository_url
 }
+
+
