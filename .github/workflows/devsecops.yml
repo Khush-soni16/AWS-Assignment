@@ -75,7 +75,7 @@ jobs:
 
       # 🧹 NEW STEP – Auto Cleanup Old Cluster if Exists
       - name: Auto Cleanup Old EKS Resources
-         continue-on-error: true
+        continue-on-error: true
         run: |
           echo "🧹 Checking for old EKS cluster and node groups..."
           CLUSTER_NAME="secure-eks-cluster"
@@ -96,7 +96,7 @@ jobs:
 
       # 🧹 NEW STEP – Auto Cleanup IAM Roles if Exist
       - name: Auto Cleanup IAM Roles
-         continue-on-error: true
+        continue-on-error: true
         run: |
           echo "🧹 Checking for existing IAM roles..."
            for role in secure-eks-cluster-role secure-eks-cluster-node-role; do
