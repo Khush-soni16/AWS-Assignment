@@ -74,43 +74,42 @@ jobs:
           terraform_version: 1.9.8
 
       # 🧹 NEW STEP – Auto Cleanup Old Cluster if Exists
-      - name: Auto Cleanup Old EKS Resources
-        continue-on-error: true
-        run: |
-          echo "🧹 Checking for old EKS cluster and node groups..."
-          CLUSTER_NAME="secure-eks-cluster"
-          if aws eks describe-cluster --name $CLUSTER_NAME --region ${{ secrets.AWS_REGION }} >/dev/null 2>&1; then
-            echo "EKS cluster exists. Deleting node groups first..."
-            NODEGROUPS=$(aws eks list-nodegroups --cluster-name $CLUSTER_NAME --region ${{ secrets.AWS_REGION }} --query 'nodegroups' --output text)
-            for ng in $NODEGROUPS; do
-              echo "Deleting node group: $ng"
-              aws eks delete-nodegroup --cluster-name $CLUSTER_NAME --nodegroup-name $ng --region ${{ secrets.AWS_REGION }}
-              aws eks wait nodegroup-deleted --cluster-name $CLUSTER_NAME --nodegroup-name $ng --region ${{ secrets.AWS_REGION }}
-            done
-            echo "Deleting cluster..."
-            aws eks delete-cluster --name $CLUSTER_NAME --region ${{ secrets.AWS_REGION }}
-            aws eks wait cluster-deleted --name $CLUSTER_NAME --region ${{ secrets.AWS_REGION }}
-          else
-            echo "No existing EKS cluster found. Continuing..."
-          fi
+     # - name: Auto Cleanup Old EKS Resources
+      #  continue-on-error: true
+       #  echo "🧹 Checking for old EKS cluster and node groups..."
+        #  CLUSTER_NAME="secure-eks-cluster"
+         ## if aws eks describe-cluster --name $CLUSTER_NAME --region ${{ secrets.AWS_REGION }} >/dev/null 2>&1; then
+           # echo "EKS cluster exists. Deleting node groups first..."
+            #NODEGROUPS=$(aws eks list-nodegroups --cluster-name $CLUSTER_NAME --region ${{ secrets.AWS_REGION }} --query 'nodegroups' --output text)
+            #for ng in $NODEGROUPS; do
+             # echo "Deleting node group: $ng"
+              #aws eks delete-nodegroup --cluster-name $CLUSTER_NAME --nodegroup-name $ng --region ${{ secrets.AWS_REGION }}
+              #aws eks wait nodegroup-deleted --cluster-name $CLUSTER_NAME --nodegroup-name $ng --region ${{ secrets.AWS_REGION }}
+            #done
+            #echo "Deleting cluster..."
+            #aws eks delete-cluster --name $CLUSTER_NAME --region ${{ secrets.AWS_REGION }}
+            #aws eks wait cluster-deleted --name $CLUSTER_NAME --region ${{ secrets.AWS_REGION }}
+          #else
+           # echo "No existing EKS cluster found. Continuing..."
+          #fi
 
       # 🧹 NEW STEP – Auto Cleanup IAM Roles if Exist
-      - name: Auto Cleanup IAM Roles
-        continue-on-error: true
-        run: |
-          echo "🧹 Checking for existing IAM roles..."
-          for role in secure-eks-cluster-role secure-eks-cluster-node-role; do
-            if aws iam get-role --role-name $role >/dev/null 2>&1; then
-              echo "Detaching policies and deleting $role..."
-              POLICY_ARNS=$(aws iam list-attached-role-policies --role-name $role --query 'AttachedPolicies[*].PolicyArn' --output text)
-              for arn in $POLICY_ARNS; do
-                aws iam detach-role-policy --role-name $role --policy-arn $arn || true
-              done
-              aws iam delete-role --role-name $role || true
-            else
-              echo "Role $role not found."
-            fi
-          done
+      #- name: Auto Cleanup IAM Roles
+       # continue-on-error: true
+       # run: |
+        #  echo "🧹 Checking for existing IAM roles..."
+         # for role in secure-eks-cluster-role secure-eks-cluster-node-role; do
+          #  if aws iam get-role --role-name $role >/dev/null 2>&1; then
+           #   echo "Detaching policies and deleting $role..."
+            #  POLICY_ARNS=$(aws iam list-attached-role-policies --role-name $role --query 'AttachedPolicies[*].PolicyArn' --output text)
+             # for arn in $POLICY_ARNS; do
+              #  aws iam detach-role-policy --role-name $role --policy-arn $arn || true
+             # done
+             # aws iam delete-role --role-name $role || true
+           # else
+            #  echo "Role $role not found."
+            #fi
+          #done
 
       # 11. Terraform Init
       - name: Terraform Init
