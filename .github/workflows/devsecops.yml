@@ -111,7 +111,17 @@ jobs:
             echo "Role $role not found."
             fi
           done
-
+      - name: Auto Cleanup ECR Repository
+        continue-on-error: true
+        run: |
+         echo "🧹 Checking for existing ECR repo: awsassignment-app"
+          aws ecr describe-repositories --repository-names awsassignment-app --region ${{ secrets.AWS_REGION }} >/dev/null 2>&1
+          if [ $? -eq 0 ]; then
+          echo "Deleting ECR repo awsassignment-app"
+          aws ecr delete-repository --repository-name awsassignment-app --region ${{ secrets.AWS_REGION }} --force
+          else
+          echo "No ECR repo found, nothing to delete."
+          fi
       # 11. Terraform Init
       - name: Terraform Init
         working-directory: ./terraform
